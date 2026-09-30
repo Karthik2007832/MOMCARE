@@ -32,7 +32,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
   const fs = require('fs');
-  const rootIndex = path.join(__dirname, 'index.html');
+  app.use(express.static(__dirname));
+  app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
   if (fs.existsSync(rootIndex)) {
     return res.sendFile(rootIndex);
   }
