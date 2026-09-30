@@ -98,48 +98,49 @@ function setConnected(state) {
 }
 
 // ── SOCKET.IO CONNECTION ────────────────────────────────────────────────────
-const socket = io();
+const socket = (typeof io === 'function') ? io() : null;
 
-socket.on('connect', () => setConnected('connected'));
-socket.on('disconnect', () => setConnected('error'));
-socket.on('connect_error', () => setConnected('error'));
+if (socket) {
+  socket.on('connect', () => setConnected('connected'));
+  socket.on('disconnect', () => setConnected('error'));
+  socket.on('connect_error', () => setConnected('error'));
 
-// Handle serial/wifi port status messages — update live dot only, no alert log
-socket.on('portStatus', ({ status, esp32Ip, port }) => {
-  if (isBleConnected) return; // Ignore backend status if we have a direct BLE connection
-  const liveDot = document.querySelector('#liveIndicator .live-dot');
-  const dotColors = {
-    connected:      '#4ade80',
-    wifi_connected: '#4ade80',
-    simulating:     '#a78bfa',
-    wifi_waiting:   '#38bdf8',
-    connecting:     '#38bdf8',
-    disconnected:   '#fbbf24',
-    error:          '#fbbf24',
-  };
-  const color = dotColors[status] || '#38bdf8';
-  if (liveDot) { liveDot.style.background = color; liveDot.style.boxShadow = `0 0 8px ${color}`; }
+  // Handle serial/wifi port status messages — update live dot only, no alert log
+  socket.on('portStatus', ({ status, esp32Ip, port }) => {
+    if (isBleConnected) return; // Ignore backend status if we have a direct BLE connection
+    const liveDot = document.querySelector('#liveIndicator .live-dot');
+    const dotColors = {
+      connected:      '#4ade80',
+      wifi_connected: '#4ade80',
+      simulating:     '#a78bfa',
+      wifi_waiting:   '#38bdf8',
+      connecting:     '#38bdf8',
+      disconnected:   '#fbbf24',
+      error:          '#fbbf24',
+    };
+    const color = dotColors[status] || '#38bdf8';
+    if (liveDot) { liveDot.style.background = color; liveDot.style.boxShadow = `0 0 8px ${color}`; }
 
-  // Update sys-info fields if they exist
-  if (sysConnMode) {
-    if (status === 'connected')      sysConnMode.textContent = `Serial (${port})`;
-    if (status === 'wifi_connected') sysConnMode.textContent = 'WiFi';
-    if (status === 'simulating')     sysConnMode.textContent = 'Simulation';
-    if (status === 'wifi_waiting')   sysConnMode.textContent = 'WiFi (waiting)';
-  }
-  if (sysEsp32Ip && esp32Ip) sysEsp32Ip.textContent = esp32Ip;
-});
+    // Update sys-info fields if they exist
+    if (sysConnMode) {
+      if (status === 'connected')      sysConnMode.textContent = `Serial (${port})`;
+      if (status === 'wifi_connected') sysConnMode.textContent = 'WiFi';
+      if (status === 'simulating')     sysConnMode.textContent = 'Simulation';
+      if (status === 'wifi_waiting')   sysConnMode.textContent = 'WiFi (waiting)';
+    }
+    if (sysEsp32Ip && esp32Ip) sysEsp32Ip.textContent = esp32Ip;
+  });
 
+  socket.on('sensorData', ({ latest, history }) => {
+    // If direct BLE is connected, BLE stream takes priority
+    if (isBleConnected) return;
 
-socket.on('sensorData', ({ latest, history }) => {
-  // If direct BLE is connected, BLE stream takes priority
-  if (isBleConnected) return;
-
-  dataCount++;
-  const dpEl = $('sysDataPoints');
-  if (dpEl) dpEl.textContent = dataCount.toLocaleString();
-  updateDashboard(latest, history);
-});
+    dataCount++;
+    const dpEl = $('sysDataPoints');
+    if (dpEl) dpEl.textContent = dataCount.toLocaleString();
+    updateDashboard(latest, history);
+  });
+}
 
 // ── MAIN UPDATE FUNCTION ────────────────────────────────────────────────────
 function updateDashboard(data, history) {
