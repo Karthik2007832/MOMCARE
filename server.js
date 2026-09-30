@@ -1,15 +1,3 @@
-// ============================================================================
-//   Mom Care Dashboard - Node.js Backend Server
-//   DUAL MODE: Accepts data from ESP32 via WiFi POST *and* USB Serial
-//   simultaneously — whichever sends data first wins, both work together.
-//
-//   MODE env var:
-//     auto     (default) → tries Serial + also listens for WiFi POST
-//     wifi     → WiFi POST only (no serial)
-//     serial   → Serial only (no WiFi POST)
-//     simulate → Realistic fake data
-// ============================================================================
-
 require('dotenv').config();
 
 const express = require('express');
@@ -27,34 +15,49 @@ const io     = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.json());
 app.use(express.text());
-app.use(express.static(__dirname));
-app.use(express.static(path.join(__dirname, 'public')));
 
+// ============================================================
+// STATIC WEBSITE FILES
+// ============================================================
+
+// Serve index.html, style.css, app.js, ai_core.js, etc.
+// directly from the project root.
+app.use(express.static(__dirname));
+
+// Main dashboard page
 app.get('/', (req, res) => {
-  const fs = require('fs');
-  app.use(express.static(__dirname));
-  app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
-});
-  if (fs.existsSync(rootIndex)) {
-    return res.sendFile(rootIndex);
-  }
-  return res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ── Configuration ──────────────────────────────────────────────────────────
 const MODE        = (process.env.MODE || 'auto').toLowerCase();
 const SERIAL_PORT = process.env.SERIAL_PORT || 'COM7';
-const BAUD_RATE   = parseInt(process.env.BAUD_RATE  || '115200');
-const SERVER_PORT = parseInt(process.env.PORT        || '3000');
+const BAUD_RATE   = parseInt(process.env.BAUD_RATE || '115200');
+const SERVER_PORT = parseInt(process.env.PORT || '3000');
 
 // ── Fall Alert Threshold ───────────────────────────────────────────────────
 const FALL_G_THRESHOLD = 3.5; // Matched to Arduino sketch threshold
 
 // ── History Buffer ─────────────────────────────────────────────────────────
 const MAX_HISTORY = 60;
+
 const history = {
-  ecg: [], bpm: [], piezo: [], kicks: [], motion: [], temp: [], timestamps: [],
+  ecg: [],
+  bpm: [],
+  piezo: [],
+  kicks: [],
+  motion: [],
+  temp: [],
+  timestamps: []
+};
+
+let latestData = {
+  ecg: 0,
+  bpm: 0,
+  piezo: 0,
+  kicks: 0,
+  motion: 0,
+  temp: 35.0,
 };
 let latestData = {
   ecg: 0, bpm: 0, piezo: 0, kicks: 0, motion: 0, temp: 35.0,
